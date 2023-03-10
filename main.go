@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -15,7 +16,12 @@ import (
 const (
 	RETRIES  = 5
 	TESTS    = 3
-	TRY_SEND = 10
+	TRY_SEND = 5
+)
+
+var (
+	config  Config
+	headers map[string]string
 )
 
 type Goods struct {
@@ -31,28 +37,19 @@ type Goods struct {
 	Address_id uint32 `json:"address_id"`
 }
 
-var (
-	headers = map[string]string{
-		"Accept":          "application/json, text/plain, */*",
-		"Accept-Language": "en-US,en-GB;q=0.9,en;q=0.8",
-		"Accept-Encoding": "gzip, deflate, br",
-		"Content-Type":    "application/json;charset=utf-8",
-		// x-rpc参数填自己的
-		"x-rpc-device_model": "",
-		"x-rpc-device_fp":    "",
-		"x-rpc-client_type":  "",
-		"x-rpc-device_id":    "",
-		"x-rpc-channel":      "",
-		"x-rpc-app_version":  "",
-		"x-rpc-device_name":  "",
-		"x-rpc-sys_version":  "",
-		"Origin":             "https://webstatic.miyoushe.com",
-		"Referer":            "https://webstatic.miyoushe.com/",
-		// ua和cookie也填自己的 必要cookie是account_id和cookie_token
-		"User-Agent": "",
-		"Cookie":     "",
-	}
-)
+type Config struct {
+	XRPCDeviceModel string `json:"x-rpc-device_model"`
+	XRPCDeviceFp    string `json:"x-rpc-device_fp"`
+	XRPCClientType  string `json:"x-rpc-client_type"`
+	XRPCDeviceID    string `json:"x-rpc-device_id"`
+	XRPCChannel     string `json:"x-rpc-channel"`
+	XRPCAppVersion  string `json:"x-rpc-app_version"`
+	XRPCDeviceName  string `json:"x-rpc-device_name"`
+	XRPCSysVersion  string `json:"x-rpc-sys_version"`
+	UserAgent       string `json:"User-Agent"`
+	Cookie          string `json:"Cookie"`
+	AddressId       uint32 `json:"address_id"`
+}
 
 // TODO: custom config
 func setHeader(h http.Header) {
@@ -66,20 +63,40 @@ func setHeader(h http.Header) {
 func getTime(timeExceed string) time.Time {
 	formatTime := strings.Split(timeExceed, ":")
 	t := time.Now()
-	h, m, s := t.Clock()
 	exHour, _ := strconv.Atoi(formatTime[0])
 	exMin, _ := strconv.Atoi(formatTime[1])
 	exSec, _ := strconv.Atoi(formatTime[2])
-	return t.Add((time.Duration(exHour - h)) * time.Hour).Add(time.Duration(exMin-m) * time.Minute).Add(time.Duration(exSec-s) * time.Second)
+	loca, _ := time.LoadLocation("Asia/Shanghai")
+	return time.Date(t.Year(), t.Month(), t.Day(), exHour, exMin, exSec, 0, loca)
 }
 
-func NewGood(app_id, exchange_num uint8, address_id uint32, point_sn, goods_id string) *Goods {
+func parseUnix(unix string) time.Time {
+	ut, _ := strconv.ParseInt(unix, 10, 64)
+	return time.Unix(ut, 0)
+}
+
+func NewRealGood(goods_id string, exchange_num uint8, address_id uint32) *Goods {
+	// 兑换实物奖励
 	return &Goods{
-		Address_id:   address_id,
-		App_id:       app_id,
-		Exchange_num: exchange_num,
+		App_id:       1,
+		Point_sn:     "myb",
 		Goods_id:     goods_id,
-		Point_sn:     point_sn,
+		Exchange_num: exchange_num,
+		Address_id:   address_id,
+	}
+}
+
+func NewVirtualGood(goods_id string, exchange_num uint8, uid, region, game_biz string) *Goods {
+	// 兑换游戏奖励
+	return &Goods{
+		App_id:       1,
+		Point_sn:     "myb",
+		Goods_id:     goods_id,
+		Exchange_num: exchange_num,
+		Uid:          uid,
+		Region:       region,
+		Game_biz:     game_biz,
+		Address_id:   0,
 	}
 }
 
@@ -130,15 +147,23 @@ func (g *Goods) doRequest(needRead ...bool) (ok bool, ret []byte) {
 func (g *Goods) TestLatency() int64 {
 	var ok bool
 	var sum int64
+	var delay int64
+	var succ int
 	var t1 time.Time
 	for i := 0; i < TESTS; i++ {
 		for j := 0; j < RETRIES && !ok; j++ {
 			t1 = time.Now()
 			ok, _ = g.doRequest(false)
 		}
-		sum += time.Since(t1).Milliseconds()
+		delay = time.Since(t1).Milliseconds()
+		// drop it if it takes a long time.
+		if delay >= 500 || !ok {
+			continue
+		}
+		sum += delay
+		succ += 1
 	}
-	return sum / TESTS
+	return sum / int64(succ)
 }
 
 func (g *Goods) GrabIt() {
@@ -188,14 +213,55 @@ func (g *Goods) Worker(timeExceed time.Time) {
 			}
 			if now.After(realExceed) {
 				g.GrabIt()
+			}
+			if now.Equal(timeExceed) || now.After(timeExceed) {
+				g.GrabIt()
 				highFrequent.Stop()
 				return
 			}
 		}
 	}
 }
+func ReadConfig() {
+	// 读取配置
+	f, err := os.ReadFile("./config.json")
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	err = json.Unmarshal(f, &config)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	headers = map[string]string{
+		"Accept":          "application/json, text/plain, */*",
+		"Accept-Language": "en-US,en-GB;q=0.9,en;q=0.8",
+		"Accept-Encoding": "gzip, deflate, br",
+		"Content-Type":    "application/json;charset=utf-8",
+		// x-rpc参数填自己的
+		"x-rpc-device_model": config.XRPCDeviceModel,
+		"x-rpc-device_fp":    config.XRPCDeviceFp,
+		"x-rpc-client_type":  config.XRPCClientType,
+		"x-rpc-device_id":    config.XRPCDeviceID,
+		"x-rpc-channel":      config.XRPCChannel,
+		"x-rpc-app_version":  config.XRPCAppVersion,
+		"x-rpc-device_name":  config.XRPCDeviceName,
+		"x-rpc-sys_version":  config.XRPCSysVersion,
+		"Origin":             "https://webstatic.miyoushe.com",
+		"Referer":            "https://webstatic.miyoushe.com/",
+		// ua和cookie也填自己的 必要cookie是account_id和cookie_token
+		"User-Agent": config.UserAgent,
+		"Cookie":     config.Cookie,
+	}
+}
 func main() {
-	good := NewGood(1, 1, 0, "myb", "2023022311902")
-
-	good.Worker(getTime("19:00:00"))
+	ReadConfig()
+	// https://github.com/jellyqwq/ShotGoods/blob/main/goods.csv
+	// 实物兑换
+	// good := NewRealGood("2023022311902", 1, config.AddressId)
+	// 游戏内兑换 (原神为例)
+	good := NewVirtualGood("2023022412691", 1, "190137795", "cn_gf01", "hk4e_cn")
+	//good.Worker(getTime("19:00:00"))
+	good.Worker(parseUnix("1678445750"))
 }
