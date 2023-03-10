@@ -1,0 +1,12 @@
+{
+	"x-rpc-device_model": "",
+	"x-rpc-device_fp":    "",
+	"x-rpc-client_type":  "",
+	"x-rpc-device_id":    "",
+	"x-rpc-channel":      "",
+	"x-rpc-app_version":  "",
+	"x-rpc-device_name":  "",
+	"x-rpc-sys_version":  "",
+	"User-Agent":         "",
+	"Cookie":             ""
+}
