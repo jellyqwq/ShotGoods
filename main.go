@@ -156,8 +156,7 @@ func (g *Goods) TestLatency() int64 {
 			ok, _ = g.doRequest(false)
 		}
 		delay = time.Since(t1).Milliseconds()
-		// drop it if it takes a long time.
-		if delay >= 500 || !ok {
+		if !ok {
 			continue
 		}
 		sum += delay
@@ -166,7 +165,7 @@ func (g *Goods) TestLatency() int64 {
 	return sum / int64(succ)
 }
 
-func (g *Goods) GrabIt() {
+func (g *Goods) GrabIt() *sync.WaitGroup {
 	var wg sync.WaitGroup
 	wg.Add(TRY_SEND)
 	for i := 0; i < TRY_SEND; i++ {
@@ -180,15 +179,22 @@ func (g *Goods) GrabIt() {
 			}
 		}()
 	}
-	wg.Wait()
+	return &wg
 }
 
 func (g *Goods) Worker(timeExceed time.Time) {
 	commCheck := time.NewTicker(time.Second)
 	var highFrequent *time.Ticker
 	hasProbe := false
+	hasSent := false
 	var latency int64
 	var realExceed time.Time
+	waitGroup := []*sync.WaitGroup{}
+	defer func() {
+		for _, wg := range waitGroup {
+			wg.Wait()
+		}
+	}()
 	for {
 		if !hasProbe {
 			now := <-commCheck.C
@@ -209,13 +215,14 @@ func (g *Goods) Worker(timeExceed time.Time) {
 		} else {
 			now := <-highFrequent.C
 			if now.Equal(realExceed) {
-				g.GrabIt()
+				waitGroup = append(waitGroup, g.GrabIt())
 			}
-			if now.After(realExceed) {
-				g.GrabIt()
+			if now.After(realExceed) && !hasSent {
+				waitGroup = append(waitGroup, g.GrabIt())
+				hasSent = true
 			}
 			if now.Equal(timeExceed) || now.After(timeExceed) {
-				g.GrabIt()
+				waitGroup = append(waitGroup, g.GrabIt())
 				highFrequent.Stop()
 				return
 			}
