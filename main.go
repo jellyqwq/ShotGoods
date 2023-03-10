@@ -148,14 +148,21 @@ func (g *Goods) TestLatency() int64 {
 	var ok bool
 	var sum int64
 	var delay int64
+	var prev int64
 	var succ int
 	var t1 time.Time
 	for i := 0; i < TESTS; i++ {
+		ok = false
 		for j := 0; j < RETRIES && !ok; j++ {
 			t1 = time.Now()
 			ok, _ = g.doRequest(false)
 		}
 		delay = time.Since(t1).Milliseconds()
+		// diff is too large, skip it.
+		if prev > 0 && delay-prev >= 500 {
+			continue
+		}
+		prev = delay
 		if !ok {
 			continue
 		}
