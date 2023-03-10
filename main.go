@@ -261,7 +261,7 @@ func main() {
 	// 实物兑换
 	// good := NewRealGood("2023022311902", 1, config.AddressId)
 	// 游戏内兑换 (原神为例)
-	good := NewVirtualGood("2023022412691", 1, "190137795", "cn_gf01", "hk4e_cn")
+	good := NewVirtualGood("2023022412691", 1, "Yuanshen uid", "cn_gf01", "hk4e_cn")
 	//good.Worker(getTime("19:00:00"))
-	good.Worker(parseUnix("1678445750"))
+	good.Worker(parseUnix("1678878000"))
 }
