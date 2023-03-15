@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"flag"
 	"io"
 	"log"
 	"net/http"
@@ -169,7 +170,9 @@ func (g *Goods) TestLatency() int64 {
 		sum += delay
 		succ += 1
 	}
-	return sum / int64(succ)
+	// GHL: RTT delay should be dived into 2, because we can only get the double trip delay.
+	// so we assume each delay of two round trip is the same.
+	return (sum / int64(succ)) / 2
 }
 
 func (g *Goods) GrabIt() *sync.WaitGroup {
@@ -236,17 +239,15 @@ func (g *Goods) Worker(timeExceed time.Time) {
 		}
 	}
 }
-func ReadConfig() {
+func ReadConfig(file string) {
 	// 读取配置
-	f, err := os.ReadFile("./config.json")
+	f, err := os.ReadFile(file)
 	if err != nil {
-		log.Println(err)
-		return
+		log.Fatal("配置文件读取错误: ", err)
 	}
 	err = json.Unmarshal(f, &config)
 	if err != nil {
-		log.Println(err)
-		return
+		log.Fatal("JSON格式错误: ", err)
 	}
 	headers = map[string]string{
 		"Accept":          "application/json, text/plain, */*",
@@ -270,12 +271,44 @@ func ReadConfig() {
 	}
 }
 func main() {
-	ReadConfig()
+	var conf string
+	var targetTime string
+	var goodID string
+	var goodType string
+	var uid string
+	flag.StringVar(&conf, "config", "", "The config file")
+	flag.StringVar(&targetTime, "target", "", "The target time")
+	flag.StringVar(&goodID, "id", "", "The good ID")
+	flag.StringVar(&goodType, "type", "", "The good type(virtual / real)")
+	flag.StringVar(&uid, "uid", "", "Yuanshen uid")
+	flag.Parse()
+	if targetTime == "" {
+		log.Fatal("no target time input")
+	}
+	if goodID == "" {
+		log.Fatal("no good id input")
+	}
+	ReadConfig(conf)
+	var good *Goods
+	switch goodType {
+	case "virtual":
+		if uid == "" {
+			log.Fatal("no uid input")
+		}
+		good = NewVirtualGood(goodID, 1, uid, "cn_gf01", "hk4e_cn")
+	case "real":
+		if config.AddressId == 0 {
+			log.Fatal("no address input")
+		}
+		good = NewRealGood(goodID, 1, config.AddressId)
+	default:
+		log.Fatal("invalid good type! please input virtual / real")
+	}
 	// https://github.com/jellyqwq/ShotGoods/blob/main/goods.csv
 	// 实物兑换
 	// good := NewRealGood("2023022311902", 1, config.AddressId)
 	// 游戏内兑换 (原神为例)
-	good := NewVirtualGood("2023022412691", 1, "Yuanshen uid", "cn_gf01", "hk4e_cn")
+	//good := NewVirtualGood("2023022412691", 1, "Yuanshen uid", "cn_gf01", "hk4e_cn")
 	//good.Worker(getTime("19:00:00"))
-	good.Worker(parseUnix("1678878000"))
+	good.Worker(parseUnix(targetTime))
 }
