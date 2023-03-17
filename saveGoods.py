@@ -93,7 +93,7 @@ class Client:
         headers = self.headers.copy()
         headers['Refer'] = 'https://app.mihoyo.com'
         headers['Cookie'] = ''
-        response = requests.get('https://api-takumi-record.mihoyo.com/game_record/app/card/wapi/getGameRecordCard?uid=288798795', headers=self.headers, proxies=proxies)
+        response = requests.get('https://api-takumi-record.mihoyo.com/game_record/app/card/wapi/getGameRecordCard?uid=bbsuid', headers=self.headers, proxies=proxies)
         print(response.text)
 
 if __name__ == '__main__':
