@@ -13,19 +13,15 @@ region得看自己服务器
 ### cookie
 必要cookie是 `account_id` 和 `cookie_token`
 
-## Usage
-```go
-func main() {
-	ReadConfig()
-	// 奖品详情: https://github.com/jellyqwq/ShotGoods/blob/main/goods.csv
-    
-	// 实物兑换
-	// good := NewRealGood("2023022311902", 1, config.AddressId)
-	// 游戏内兑换 (原神为例)
-	good := NewVirtualGood("2023022412691", 1, "Yuanshen uid", "cn_gf01", "hk4e_cn")
+如果要获取对应的游戏服务器还需要 `stoken` 和 `stuid` (暂未实现)
 
-	// good.Worker(getTime("19:00:00"))
-    // Goods的 next_time
-	good.Worker(parseUnix("1678878000"))
-}
+## Usage
+> Linux & virtual exchange
+```shell
+./ShotGoods -type "virtual" -id "2023022412691" -uid "100000000" -target "1678882996" -conf "config.json"
+```
+
+> Windows & real exchange
+```shell
+ShotGoods.exe -type "real" -id "2023022412691" -target "1678882996" -conf "config.json"
 ```
