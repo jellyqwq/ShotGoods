@@ -1,2 +1,5 @@
 config
 config.json
+__pycache__
+main
+main.exe
