@@ -18,10 +18,10 @@ region得看自己服务器
 ## Usage
 > Linux & virtual exchange
 ```shell
-./ShotGoods -type "virtual" -id "2023022412691" -uid "100000000" -target "1678882996" -conf "config.json"
+./ShotGoods -type "virtual" -id "2023022412691" -uid "100000000" -target "1678882996" -config "config.json"
 ```
 
 > Windows & real exchange
 ```shell
-ShotGoods.exe -type "real" -id "2023022412691" -target "1678882996" -conf "config.json"
+ShotGoods.exe -type "real" -id "2023022412691" -target "1678882996" -config "config.json"
 ```
