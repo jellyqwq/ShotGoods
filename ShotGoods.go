@@ -331,12 +331,8 @@ func main() {
 	default:
 		log.Fatal("invalid good type! please input virtual / real")
 	}
-	// https://github.com/jellyqwq/ShotGoods/blob/main/goods.csv
-	// 实物兑换
-	// good := NewRealGood("2023022311902", 1, config.AddressId)
-	// 游戏内兑换 (原神为例)
-	//good := NewVirtualGood("2023022412691", 1, "Yuanshen uid", "cn_gf01", "hk4e_cn")
-	//good.Worker(getTime("19:00:00"))
+
+	// Determine if the input time consists of only digits
 	if isOnlyDigital(targetTime) {
 		good.Worker(parseUnix(targetTime))
 	} else {
