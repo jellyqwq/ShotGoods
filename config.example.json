@@ -7,6 +7,7 @@
 	"x-rpc-app_version":  "",
 	"x-rpc-device_name":  "",
 	"x-rpc-sys_version":  "",
+	"x-rpc-verify_key":   "",
 	"User-Agent":         "",
 	"Cookie":             "",
 	"address_id":         0

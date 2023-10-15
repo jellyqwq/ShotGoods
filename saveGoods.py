@@ -37,6 +37,7 @@ class Client:
             "x-rpc-app_version": self.config["x-rpc-app_version"],
             "x-rpc-device_name": self.config["x-rpc-device_name"],
             "x-rpc-sys_version": self.config["x-rpc-sys_version"],
+            "x-rpc-verify_key": self.config["x-rpc-verify_key"],
             "Origin": "https://webstatic.miyoushe.com",
             "Referer": "https://webstatic.miyoushe.com/",
             "User-Agent": self.config["User-Agent"],

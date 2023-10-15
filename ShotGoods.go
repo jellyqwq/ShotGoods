@@ -47,6 +47,7 @@ type Config struct {
 	XRPCAppVersion  string `json:"x-rpc-app_version"`
 	XRPCDeviceName  string `json:"x-rpc-device_name"`
 	XRPCSysVersion  string `json:"x-rpc-sys_version"`
+	XRPCVerifyKey   string `json:"x-rpc-verify_key"`
 	UserAgent       string `json:"User-Agent"`
 	Cookie          string `json:"Cookie"`
 	AddressId       uint32 `json:"address_id"`
@@ -60,15 +61,29 @@ func setHeader(h http.Header) {
 	}
 }
 
-// timeExceed format: Hour:Minute:Second
+// determine input time type (time string or timestamp)
+func isOnlyDigital(s string) bool {
+	_, err := strconv.Atoi(s)
+	return err == nil
+}
+
+// timeExceed format: Year-Month-Day Hour:Minute:Second
+// hgd: support Year-Month-Day format for pre-running
+// func getTime(timeExceed string) time.Time {
 func getTime(timeExceed string) time.Time {
-	formatTime := strings.Split(timeExceed, ":")
-	t := time.Now()
-	exHour, _ := strconv.Atoi(formatTime[0])
-	exMin, _ := strconv.Atoi(formatTime[1])
-	exSec, _ := strconv.Atoi(formatTime[2])
+	timeArray := strings.Split(timeExceed, " ")
+
+	formatTime := strings.Split(timeArray[0], "-")
+	formatTime = append(formatTime, strings.Split(timeArray[1], ":")...)
+
+	exYear, _ := strconv.Atoi(formatTime[0])
+	exMonth, _ := strconv.Atoi(formatTime[1])
+	exDay, _ := strconv.Atoi(formatTime[2])
+	exHour, _ := strconv.Atoi(formatTime[3])
+	exMin, _ := strconv.Atoi(formatTime[4])
+	exSec, _ := strconv.Atoi(formatTime[5])
 	loca, _ := time.LoadLocation("Asia/Shanghai")
-	return time.Date(t.Year(), t.Month(), t.Day(), exHour, exMin, exSec, 0, loca)
+	return time.Date(exYear, time.Month(exMonth), exDay, exHour, exMin, exSec, 0, loca)
 }
 
 func parseUnix(unix string) time.Time {
@@ -276,11 +291,17 @@ func main() {
 	var goodID string
 	var goodType string
 	var uid string
+	var region string
+	var game_biz string
+
 	flag.StringVar(&conf, "config", "", "The config file")
-	flag.StringVar(&targetTime, "target", "", "The target time")
+	flag.StringVar(&targetTime, "target", "", "The target time (recommend \"Year-Month-Day Hour:Minute:Second\" as input)")
 	flag.StringVar(&goodID, "id", "", "The good ID")
 	flag.StringVar(&goodType, "type", "", "The good type(virtual / real)")
 	flag.StringVar(&uid, "uid", "", "Yuanshen uid")
+	flag.StringVar(&region, "region", "", "ServerRegion(Genshin:cn_gf01 / Honkai3:pc01)")
+	flag.StringVar(&game_biz, "game_biz", "", "(Genshin:hk4e_cn / Honkai3:bh3_cn)")
+
 	flag.Parse()
 	if targetTime == "" {
 		log.Fatal("no target time input")
@@ -295,7 +316,13 @@ func main() {
 		if uid == "" {
 			log.Fatal("no uid input")
 		}
-		good = NewVirtualGood(goodID, 1, uid, "cn_gf01", "hk4e_cn")
+		if region == "" {
+			log.Fatal("no region input, (Genshin:cn_gf01 / Honkai3:pc01)")
+		}
+		if game_biz == "" {
+			log.Fatal("no game_biz input, (Genshin:hk4e_cn / Honkai3:bh3_cn)")
+		}
+		good = NewVirtualGood(goodID, 1, uid, region, game_biz)
 	case "real":
 		if config.AddressId == 0 {
 			log.Fatal("no address input")
@@ -310,5 +337,9 @@ func main() {
 	// 游戏内兑换 (原神为例)
 	//good := NewVirtualGood("2023022412691", 1, "Yuanshen uid", "cn_gf01", "hk4e_cn")
 	//good.Worker(getTime("19:00:00"))
-	good.Worker(parseUnix(targetTime))
+	if isOnlyDigital(targetTime) {
+		good.Worker(parseUnix(targetTime))
+	} else {
+		good.Worker(getTime(targetTime))
+	}
 }
