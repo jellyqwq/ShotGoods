@@ -4,3 +4,4 @@ __pycache__
 ShotGoods
 ShotGoods.exe
 *_test.go
+*.log

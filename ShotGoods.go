@@ -53,6 +53,18 @@ type Config struct {
 	AddressId       uint32 `json:"address_id"`
 }
 
+func init() {
+	logFile, err := os.OpenFile("./ShotGoods.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0766)
+	if err != nil {
+		log.Panic(err)
+	}
+
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
+	multiWriter := io.MultiWriter(os.Stdout, logFile)
+	log.SetOutput(multiWriter)
+}
+
 // TODO: custom config
 func setHeader(h http.Header) {
 	for k, v := range headers {
@@ -83,12 +95,17 @@ func getTime(timeExceed string) time.Time {
 	exMin, _ := strconv.Atoi(formatTime[4])
 	exSec, _ := strconv.Atoi(formatTime[5])
 	loca, _ := time.LoadLocation("Asia/Shanghai")
-	return time.Date(exYear, time.Month(exMonth), exDay, exHour, exMin, exSec, 0, loca)
+
+	result := time.Date(exYear, time.Month(exMonth), exDay, exHour, exMin, exSec, 0, loca)
+	log.Println("exchange time: ", result.Local().Format("2006-01-02 15:04:05"))
+	return result
 }
 
 func parseUnix(unix string) time.Time {
 	ut, _ := strconv.ParseInt(unix, 10, 64)
-	return time.Unix(ut, 0)
+	result := time.Unix(ut, 0)
+	log.Println("exchange time: ", result.Local().Format("2006-01-02 15:04:05"))
+	return result
 }
 
 func NewRealGood(goods_id string, exchange_num uint8, address_id uint32) *Goods {
@@ -278,6 +295,7 @@ func ReadConfig(file string) {
 		"x-rpc-app_version":  config.XRPCAppVersion,
 		"x-rpc-device_name":  config.XRPCDeviceName,
 		"x-rpc-sys_version":  config.XRPCSysVersion,
+		"x-rpc-verify_key":   config.XRPCVerifyKey,
 		"Origin":             "https://webstatic.miyoushe.com",
 		"Referer":            "https://webstatic.miyoushe.com/",
 		// ua和cookie也填自己的 必要cookie是account_id和cookie_token
